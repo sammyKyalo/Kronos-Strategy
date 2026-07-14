@@ -1,0 +1,24 @@
+services:
+  - type: worker
+    name: fulla1-alpaca-bot
+    runtime: python
+    plan: starter
+    region: ohio
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python fulla1_bot.py
+    autoDeployTrigger: off
+    maxShutdownDelaySeconds: 60
+    numInstances: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_API_SECRET
+        sync: false
+      - key: ALPACA_PAPER
+        value: "true"
+      - key: ALPACA_DATA_FEED
+        value: sip
+      - key: USE_SCALE_OUT
+        value: "true"
