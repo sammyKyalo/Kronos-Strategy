@@ -123,16 +123,6 @@ TICKERS = [
 
 ALL_SYMBOLS = sorted(set(TICKERS + ["SPY"]))
 
-# The Alpaca Basic plan supports 30 stock websocket subscriptions.
-# This exact strategy uses more symbols and therefore requires SIP / Algo Trader Plus.
-if DATA_FEED_NAME == "iex" and len(ALL_SYMBOLS) > 30:
-    raise RuntimeError(
-        f"ALPACA_DATA_FEED=iex supports only 30 websocket symbols on the Basic plan, "
-        f"but this bot requires {len(ALL_SYMBOLS)} symbols including SPY. "
-        "Set ALPACA_DATA_FEED=sip with an eligible Alpaca market-data subscription, "
-        "or reduce the ticker universe to at most 29 stocks plus SPY."
-    )
-
 TIMEFRAME_MINUTES = 5
 RISK_PER_TRADE = 0.10
 
