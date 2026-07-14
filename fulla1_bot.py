@@ -32,6 +32,7 @@ import os
 import signal
 import threading
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from dataclasses import dataclass, field
 from datetime import datetime, time as dtime, timedelta
 from typing import Optional
@@ -929,6 +930,50 @@ async def eod_manager() -> None:
         await asyncio.sleep(1.0)
 
 
+
+# ========================= RENDER HTTP HEALTH SERVER =========================
+
+class HealthHandler(BaseHTTPRequestHandler):
+    """Minimal HTTP endpoint required by a Render Web Service."""
+
+    def do_GET(self) -> None:
+        if self.path in {"/", "/health"}:
+            with state_lock:
+                active_symbols = sorted(position_states.keys())
+                pending_symbols = sorted(entry_in_progress)
+
+            body = (
+                "FULLA1 bot is running\n"
+                f"paper={PAPER}\n"
+                f"feed={DATA_FEED_NAME}\n"
+                f"symbols={len(TICKERS)}\n"
+                f"exit_mode={'scale_out' if USE_SCALE_OUT else 'full_tp1'}\n"
+                f"active_positions={active_symbols}\n"
+                f"entries_in_progress={pending_symbols}\n"
+            ).encode("utf-8")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def log_message(self, format: str, *args) -> None:
+        return
+
+
+def start_health_server() -> None:
+    """Bind to Render's PORT so the Web Service passes health checks."""
+    port = int(os.getenv("PORT", "10000"))
+    server = ThreadingHTTPServer(("0.0.0.0", port), HealthHandler)
+    logger.info("HTTP health server listening on 0.0.0.0:%d", port)
+    server.serve_forever()
+
+
 # ========================= RUN =========================
 
 def start_streams() -> None:
@@ -986,6 +1031,13 @@ async def main() -> None:
 
 
 def run() -> None:
+    health_thread = threading.Thread(
+        target=start_health_server,
+        name="render-http-health",
+        daemon=True,
+    )
+    health_thread.start()
+
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
