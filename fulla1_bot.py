@@ -203,6 +203,7 @@ traded_dates: dict[str, set[str]] = {symbol: set() for symbol in TICKERS}
 position_states: dict[str, PositionState] = {}
 entry_in_progress: set[str] = set()
 state_lock = threading.RLock()
+last_logged_trading_date: Optional[str] = None
 
 
 # ========================= DATA HELPERS =========================
@@ -902,11 +903,20 @@ async def close_symbol_at_eod(symbol: str) -> None:
 
 
 async def eod_manager() -> None:
+    global last_logged_trading_date
+
     last_eod_date: Optional[str] = None
 
     while True:
         now_ny = datetime.now(NY)
         today = now_ny.date().isoformat()
+
+        if last_logged_trading_date != today:
+            logger.info(
+                "NEW TRADING DAY | date=%s | using today's premarket and regular-session data",
+                today,
+            )
+            last_logged_trading_date = today
 
         if now_ny.time() >= CLOSE_ALL_TIME and last_eod_date != today:
             with state_lock:
